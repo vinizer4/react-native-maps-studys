@@ -2,26 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
-import RNHTTPServer from 'react-native-http-server';
-import RNFS from 'react-native-fs';
+import * as FileSystem from 'expo-file-system';
 
-const tilesDirectory = `${RNFS.DocumentDirectoryPath}/osm_tiles`;
+const tilesDirectory = `${FileSystem.documentDirectory}osm_tiles`;
 
 async function downloadAndSaveTiles() {
-  // Create the directory structure for the tiles
-  await RNFS.mkdir(`${tilesDirectory}/z`);
+  // Crie a estrutura de diretórios para os tiles
+  await FileSystem.makeDirectoryAsync(`${tilesDirectory}/z`, { intermediates: true });
 
-  // Download the tiles and save them to the local storage
-  // Replace the URL with the actual URL of the OpenStreetMap tile you want to download
+  // Baixe os tiles e salve-os no armazenamento local
+  // Substitua a URL pela URL real do tile OpenStreetMap que você deseja baixar
   const tileUrl = 'https://tile.openstreetmap.org/z/x/y.png';
 
   const localTilePath = `${tilesDirectory}/z/x/y.png`;
 
-  // Download and save the tile
-  await RNFS.downloadFile({
-    fromUrl: tileUrl,
-    toFile: localTilePath,
-  }).promise;
+  // Baixe e salve o tile
+  await FileSystem.downloadAsync(tileUrl, localTilePath);
 }
 
 const App = () => {
@@ -33,7 +29,6 @@ const App = () => {
   });
 
   const [tileServerUrl, setTileServerUrl] = useState('');
-  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -54,25 +49,11 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const server = new RNHTTPServer({
-      documentRoot: 'www/tiles', // Change this to the path of your downloaded OSM tiles
-      port: 8080,
-    });
+    const localTileUrl = `${tilesDirectory}/{z}/{x}/{y}.png`;
+    setTileServerUrl(localTileUrl);
 
-    server.start(() => {
-      setTileServerUrl('http://localhost:8080/{z}/{x}/{y}.png');
-    });
-
-    return () => {
-      server.stop();
-    };
+    downloadAndSaveTiles();
   }, []);
-
-  useEffect(() => {
-    if (loggedIn) {
-      downloadAndSaveTiles();
-    }
-  }, [loggedIn]);
 
   return (
     <View style={styles.container}>
@@ -86,16 +67,18 @@ const App = () => {
       </MapView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   map: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
 });
 
-export default App;
+ export default React.memo(App);
